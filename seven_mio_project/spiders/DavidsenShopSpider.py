@@ -14,7 +14,7 @@ class DavidsenshopSpider(scrapy.Spider):
         try:
             byg_main_category_url = get_href_of_element_from_group(
                 response=response,
-                element_name="byg",
+                element_text="byg",
                 element_group_css_query="div.QuickBasketAndMenus__MenuWrapper-sc-17cnu5q-20.fQBxeN div ul li a",
             )
         except OutdatedError:
@@ -25,18 +25,18 @@ class DavidsenshopSpider(scrapy.Spider):
 
     def parse_main_category_page(self, response: TextResponse):
         tree_sub_category_url = get_href_of_element_from_group(
-            response=response, element_name="træ", element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a"
+            response=response, element_text="træ", element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a"
         )
 
         # TODO: Follow tree_sub_category_url to get to lægter, so we can start scraping "Lægter" and "Reglar"
         yield {"tree_sub_category_url": tree_sub_category_url}
 
 
-def get_href_of_element_from_group(response: TextResponse, element_name: str, element_group_css_query: str) -> str:
+def get_href_of_element_from_group(response: TextResponse, element_text: str, element_group_css_query: str) -> str:
     """
     Raises:
         OutdatedError: When CSS query seems to have been outdated by update to website HTML.
-        UnexpectedResultError: If multiple elements of the group return text strings that equal element_name.
+        UnexpectedResultError: If multiple elements of the group return text strings that equal element_text.
     """
     # TODO:
     #  This could potentially just take a list of categories and follow them all:
@@ -46,7 +46,7 @@ def get_href_of_element_from_group(response: TextResponse, element_name: str, el
     element_group_selector = response.css(element_group_css_query)
     element_group_texts_dict = extract_all_element_group_texts(element_group_selector)
     element_index = get_dict_key_with_value_containing_target(
-        dictionary=element_group_texts_dict, target_string=element_name
+        dictionary=element_group_texts_dict, target_string=element_text
     )
 
     return element_group_selector[element_index].attrib["href"]
