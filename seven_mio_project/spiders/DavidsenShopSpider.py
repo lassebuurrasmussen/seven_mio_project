@@ -1,7 +1,7 @@
-import urllib.parse
-
 import scrapy
+from scrapy import Selector
 from scrapy.http import TextResponse
+from scrapy.selector import SelectorList
 
 from seven_mio_project.CustomExceptions import OutdatedError, UnexpectedResultError
 
@@ -10,8 +10,7 @@ def get_href_of_element_from_group(response: TextResponse, element_name: str, el
     """
     Raises:
         OutdatedError: When CSS query seems to have been outdated by update to website HTML.
-        UnexpectedResultError: If elements of the group return multiple text strings when calling
-            element_selector.css("::text").getall()
+        UnexpectedResultError: If multiple elements of the group return text strings that equal element_name.
     """
     # TODO:
     #  This could potentially just take a list of categories and follow them all:
@@ -19,34 +18,34 @@ def get_href_of_element_from_group(response: TextResponse, element_name: str, el
     #       yield from response.follow_all(css='ul.pager a', callback=self.parse)
     #       ```
     element_group_selector = response.css(element_group_css_query)
+    element_group_texts_dict = extract_all_element_group_texts(element_group_selector)
+    element_index = get_dict_key_with_value_containing_target(
+        dictionary=element_group_texts_dict, target_string=element_name
+    )
 
-    # TODO:
-    #  It is possible for a single `a` element to return mutltiple text strings. E.g.
-    #  ```
-    #  >>> response.css("div.sc-bxivhb.bHTkun div div ul li a")[0].css("::text").getall()
-    #  [' ', 'Træ']
-    #  ```
-    #  So I somehow need to handle that. I can't just look at the first text string of the `a` element to determine
-    #  which one to get href attribute from. Works fine for self.parse as it is, but not for parse_main_category_page.
-    if not all([len(selector.css("::text").getall()) == 1 for selector in element_group_selector]):
-        raise UnexpectedResultError(
-            "At least one element contained multiple text parts. Please make a more specific CSS query"
-        )
+    return element_group_selector[element_index].attrib["href"]
 
-    # Note that .css("::text").getall() only returns `str` for those elements that have text. So len(Selectorlist) is
-    # not neccesarily same as len(Selectorlist"::text").getall()). So we use .get() method instead
-    element_name_to_element_selector_dict: dict[str, scrapy.Selector] = {
-        selector.css("::text").get().lower(): selector for selector in element_group_selector
+
+def get_dict_key_with_value_containing_target(dictionary: dict[int, list[str]], target_string: str) -> int:
+    element_index = [i for i, element_texts in dictionary.items() if target_string in element_texts]
+
+    n_element_hits = len(element_index)
+    if n_element_hits > 1:
+        raise UnexpectedResultError(f'Multiple elements had a text string equal to "{target_string}"')
+    elif n_element_hits < 1:
+        raise OutdatedError(f'"{target_string}" is not in element_group_texts_dict. {dictionary.values()=}')
+    return element_index[0]
+
+
+def extract_all_element_group_texts(element_group_selector: SelectorList) -> dict[int, list[str]]:
+    return {
+        i: extract_all_lower_case_texts(selector=element_selector)
+        for i, element_selector in enumerate(element_group_selector)
     }
 
-    try:
-        element_selector = element_name_to_element_selector_dict[element_name]
-    except KeyError as error:
-        raise OutdatedError(
-            f'"{element_name}" is not key of selector dict. {element_name_to_element_selector_dict.keys()=}'
-        ) from error
 
-    return element_selector.attrib["href"]
+def extract_all_lower_case_texts(selector: Selector) -> list[str]:
+    return [element_text.lower() for element_text in selector.css("::text").getall()]
 
 
 class DavidsenshopSpider(scrapy.Spider):
@@ -67,9 +66,8 @@ class DavidsenshopSpider(scrapy.Spider):
         yield response.follow(byg_main_category_url, callback=self.parse_main_category_page)
 
     def parse_main_category_page(self, response: TextResponse):
-        # TODO: Remove this
-        response.css("div.sc-bxivhb.bHTkun div div ul li a").getall()
-
         tree_sub_category_url = get_href_of_element_from_group(
             response=response, element_name="træ", element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a"
         )
+
+        yield {"tree_sub_category_url": tree_sub_category_url}
