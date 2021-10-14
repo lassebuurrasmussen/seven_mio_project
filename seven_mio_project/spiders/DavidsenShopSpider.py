@@ -6,7 +6,7 @@ from scrapy.http import TextResponse
 from seven_mio_project.CustomExceptions import OutdatedError
 
 
-def get_byg_url(response: TextResponse) -> str:
+def get_byg_sub_url(response: TextResponse) -> str:
     """
     Raises:
         OutdatedError: When CSS query seems to have been outdated by update to website HTML.
@@ -18,13 +18,10 @@ def get_byg_url(response: TextResponse) -> str:
 
     try:
         byg_index = main_category_texts.index("byg")
-    except ValueError as e:
-        raise OutdatedError(f'"byg" is not part of main_category_texts list. {main_category_texts=}') from e
+    except ValueError as error:
+        raise OutdatedError(f'"byg" is not part of main_category_texts list. {main_category_texts=}') from error
 
-    byg_sub_url = main_categories_selector[byg_index].css("::attr(href)").get()
-    byg_url = urllib.parse.urljoin(response.url, byg_sub_url)
-
-    return byg_url
+    return main_categories_selector[byg_index].attrib["href"].get()
 
 
 class DavidsenshopSpider(scrapy.Spider):
@@ -35,10 +32,10 @@ class DavidsenshopSpider(scrapy.Spider):
 
     def parse(self, response: TextResponse, **kwargs):
         try:
-            byg_url = get_byg_url(response)
+            byg_sub_url = get_byg_sub_url(response)
         except OutdatedError:
             # Assume that byg page URL itself has not changed
-            byg_url = "https://www.davidsenshop.dk/byg-c-id497143"
+            byg_sub_url = "https://www.davidsenshop.dk/byg-c-id497143"
 
         yield {
             "url": byg_url,
