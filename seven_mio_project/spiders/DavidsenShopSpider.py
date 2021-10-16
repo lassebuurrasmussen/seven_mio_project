@@ -1,3 +1,6 @@
+import re
+from functools import partial
+
 import scrapy
 from scrapy import Selector
 from scrapy.http import TextResponse
@@ -27,9 +30,50 @@ class DavidsenshopSpider(scrapy.Spider):
         tree_sub_category_url = get_href_of_element_from_group(
             response=response, element_text="træ", element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a"
         )
+        yield response.follow(tree_sub_category_url, callback=self.parse_sub_category_page)
 
-        # TODO: Follow tree_sub_category_url to get to lægter, so we can start scraping "Lægter" and "Reglar"
-        yield {"tree_sub_category_url": tree_sub_category_url}
+    def parse_sub_category_page(self, response: TextResponse):
+
+        laegter_sub_category_url = get_href_of_element_from_group(
+            response=response,
+            element_text="lægter",
+            element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a",
+        )
+        yield response.follow(laegter_sub_category_url, callback=partial(self.parse_item_list_page, sub_category="lægter"))
+
+        reglar_sub_category_url = get_href_of_element_from_group(
+            response=response,
+            element_text="reglar",
+            element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a",
+        )
+        yield response.follow(reglar_sub_category_url, callback=partial(self.parse_item_list_page, sub_category="reglar"))
+
+    def parse_item_list_page(self, response: TextResponse, sub_category: str):
+        item_selectors = response.css("div.sc-bxivhb.kRNIyz > ul > li")
+
+        for item_index, item_selector in enumerate(item_selectors):
+            item_data = {"sub_category": sub_category}
+            item_selector: Selector
+
+            full_name = item_selector.css("div > div:nth-child(1) > a > div:nth-child(2)::text").get()
+            name, dimensions, dimensions_unit = extract_dimensions_from_full_name(full_name)
+            item_data.update(
+                {"full_name": full_name, "name": name, "dimensions": dimensions, "dimensions_unit": dimensions_unit}
+            )
+
+            price_per_unit = item_selector.css("div > div:nth-child(2) > div:nth-child(1) > div > span::text").get()
+            price_per_item = item_selector.css(
+                "div > div > div:nth-child(1) > div.styles__DiscountWrap-sc-2i08oq-7::text"
+            ).getall()[1]
+            item_data["price_per_unit"] = format_price_with_comma(price_per_unit)
+            item_data["price_per_item"] = format_price_with_comma(price_per_item)
+
+            unit = item_selector.css("div > div > div:nth-child(1) > div:nth-child(1) > div::text").get()
+            item_data["unit"] = unit.strip("kr./")
+
+            item_data["url"] = item_selector.css("div > div:nth-child(1) > a").attrib["href"]
+
+            yield item_data
 
 
 def get_href_of_element_from_group(response: TextResponse, element_text: str, element_group_css_query: str) -> str:
@@ -72,3 +116,20 @@ def extract_all_element_group_texts(element_group_selector: SelectorList) -> dic
 
 def extract_all_lower_case_texts(selector: Selector) -> list[str]:
     return [element_text.lower() for element_text in selector.css("::text").getall()]
+
+
+def extract_dimensions_from_full_name(full_name: str) -> tuple[str, str, str]:
+    dimension_pattern = r" (\d+ ?x ?\d+) (\w+)"
+    dimension_match = re.search(dimension_pattern, full_name)
+
+    dimensions, dimensions_unit = dimension_match.groups()
+    name = full_name[: dimension_match.start()]
+
+    return name, dimensions, dimensions_unit
+
+
+def format_price_with_comma(price: str) -> float:
+    comma_count = price.count(",")
+    assert comma_count == 1, f'price contained more or less than one ",". {price=}'
+    assert "." not in price, f'price already contained ".". {price=}'
+    return float(price.replace(",", "."))
