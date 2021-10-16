@@ -30,23 +30,22 @@ class DavidsenshopSpider(scrapy.Spider):
         tree_sub_category_url = get_href_of_element_from_group(
             response=response, element_text="træ", element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a"
         )
-        yield response.follow(tree_sub_category_url, callback=self.parse_sub_category_page)
+        yield response.follow(tree_sub_category_url, callback=self.parse_sub_category_pages)
 
-    def parse_sub_category_page(self, response: TextResponse):
+    def parse_sub_category_pages(self, response: TextResponse):
 
-        laegter_sub_category_url = get_href_of_element_from_group(
-            response=response,
-            element_text="lægter",
-            element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a",
-        )
-        yield response.follow(laegter_sub_category_url, callback=partial(self.parse_item_list_page, sub_category="lægter"))
-
-        reglar_sub_category_url = get_href_of_element_from_group(
-            response=response,
-            element_text="reglar",
-            element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a",
-        )
-        yield response.follow(reglar_sub_category_url, callback=partial(self.parse_item_list_page, sub_category="reglar"))
+        for sub_category in [
+            "lægter",
+            "reglar",
+        ]:
+            laegter_sub_category_url = get_href_of_element_from_group(
+                response=response,
+                element_text=sub_category,
+                element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a",
+            )
+            yield response.follow(
+                laegter_sub_category_url, callback=partial(self.parse_item_list_page, sub_category=sub_category)
+            )
 
     def parse_item_list_page(self, response: TextResponse, sub_category: str):
         item_selectors = response.css("div.sc-bxivhb.kRNIyz > ul > li")
