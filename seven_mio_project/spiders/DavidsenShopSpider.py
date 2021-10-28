@@ -122,6 +122,8 @@ def extract_dimensions_from_full_name(full_name: str) -> tuple[str, str, str]:
     dimension_match = re.search(dimension_pattern, full_name)
 
     dimensions, dimensions_unit = dimension_match.groups()
+    dimensions = dimensions.replace(" ", "")
+
     name = full_name[: dimension_match.start()]
 
     return name, dimensions, dimensions_unit
