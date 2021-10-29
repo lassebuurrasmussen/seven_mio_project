@@ -1,6 +1,5 @@
 import json
 import re
-from functools import partial
 from typing import Optional
 
 import scrapy
@@ -51,16 +50,26 @@ def parse_item_list_page(response: TextResponse):
 
         full_name = item_selector.css("div > div:nth-child(1) > a > div:nth-child(2)::text").get()
         name, dimensions, dimensions_unit = extract_dimensions_from_full_name(full_name)
-        item_data.update(
-            {"full_name": full_name, "name": name, "dimensions": dimensions, "dimensions_unit": dimensions_unit}
+        price_per_unit = get_price(
+            item_selector=item_selector,
+            css_query="div > div:nth-child(2) > div:nth-child(1) > div > span::text",
+            allow_to_be_missing=True,
         )
-
-        price_per_unit = item_selector.css("div > div:nth-child(2) > div:nth-child(1) > div > span::text").get()
-        price_per_item = item_selector.css(
-            "div > div > div:nth-child(1) > div.styles__DiscountWrap-sc-2i08oq-7::text"
-        ).getall()[1]
-        item_data["price_per_unit"] = format_price_with_comma(price_per_unit)
-        item_data["price_per_item"] = format_price_with_comma(price_per_item)
+        price_per_item = get_price(
+            item_selector=item_selector,
+            css_query="div > div > div:nth-child(1) > div.styles__DiscountWrap-sc-2i08oq-7::text",
+            allow_to_be_missing=False,
+        )
+        item_data.update(
+            {
+                "full_name": full_name,
+                "name": name,
+                "dimensions": dimensions,
+                "dimensions_unit": dimensions_unit,
+                "price_per_item": price_per_item,
+                "price_per_unit": price_per_unit,
+            }
+        )
 
         unit = item_selector.css("div > div > div:nth-child(1) > div:nth-child(1) > div::text").get()
         item_data["unit"] = unit.strip("kr./")
@@ -68,6 +77,32 @@ def parse_item_list_page(response: TextResponse):
         item_data["url"] = item_selector.css("div > div:nth-child(1) > a").attrib["href"]
 
         yield item_data
+
+
+def get_price(item_selector: Selector, css_query: str, allow_to_be_missing: bool) -> Optional[float]:
+    price_candidates = item_selector.css(css_query).getall()
+
+    prices_with_float_format = [
+        price_as_float
+        for price_candidate in price_candidates
+        if (price_as_float := try_to_convert_to_float(price_candidate)) is not None
+    ]
+
+    if allow_to_be_missing:
+        return prices_with_float_format[0] if len(prices_with_float_format) else None
+
+    err_message = f"Did not find one and only one price per unit with float format. {prices_with_float_format=}"
+    assert len(prices_with_float_format) == 1, err_message
+    return prices_with_float_format[0]
+
+
+def try_to_convert_to_float(inpt: str) -> Optional[float]:
+    replacer_map = str.maketrans({".": "_", ",": "."})
+    output = inpt.translate(replacer_map)
+    try:
+        return float(output)
+    except ValueError:
+        return None
 
 
 def get_sub_category_urls(response: TextResponse) -> dict[str, str]:
@@ -153,10 +188,3 @@ def extract_dimensions_from_full_name(full_name: str) -> tuple[Optional[str], Op
     dimensions = dimensions.replace(" ", "")
     name = full_name[: dimension_match.start()]
     return name, dimensions, dimensions_unit
-
-
-def format_price_with_comma(price: str) -> float:
-    comma_count = price.count(",")
-    assert comma_count == 1, f'price contained more or less than one ",". {price=}'
-    assert "." not in price, f'price already contained ".". {price=}'
-    return float(price.replace(",", "."))
