@@ -111,11 +111,6 @@ def get_href_of_element_from_group(response: TextResponse, element_text: str, el
         OutdatedError: When CSS query seems to have been outdated by update to website HTML.
         UnexpectedResultError: If multiple elements of the group return text strings that equal element_text.
     """
-    # TODO:
-    #  This could potentially just take a list of categories and follow them all:
-    #       ```
-    #       yield from response.follow_all(css='ul.pager a', callback=self.parse)
-    #       ```
     element_group_selector = response.css(element_group_css_query)
     element_group_texts_dict = extract_all_element_group_texts(element_group_selector)
     element_index = get_dict_key_with_value_containing_target(
