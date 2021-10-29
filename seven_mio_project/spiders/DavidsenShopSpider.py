@@ -62,6 +62,13 @@ def parse_item_list_page(response: TextResponse):
         item_data["price_per_unit"] = format_price_with_comma(price_per_unit)
         item_data["price_per_item"] = format_price_with_comma(price_per_item)
 
+        unit = item_selector.css("div > div > div:nth-child(1) > div:nth-child(1) > div::text").get()
+        item_data["unit"] = unit.strip("kr./")
+
+        item_data["url"] = item_selector.css("div > div:nth-child(1) > a").attrib["href"]
+
+        yield item_data
+
 
 def get_sub_category_urls(response: TextResponse) -> dict[str, str]:
     sub_categories_css_query = (
