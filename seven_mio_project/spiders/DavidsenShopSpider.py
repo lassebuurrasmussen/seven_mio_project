@@ -66,7 +66,8 @@ def get_sub_category_urls(response: TextResponse) -> dict[str, str]:
 
     def get_sub_category_name(sub_category_selector: Selector) -> str:
         """Each `a` tag has two text elements. Extract the second one."""
-        return sub_category_selector.css("a::text").getall()[1]
+        sub_category_name = sub_category_selector.css("a::text").getall()[1]
+        return replace_danish_letters(word=sub_category_name)
 
     def does_element_contain_sub_category(sub_category_selector: Selector) -> bool:
         """
@@ -80,6 +81,15 @@ def get_sub_category_urls(response: TextResponse) -> dict[str, str]:
         for sub_category_selector in sub_category_selectors
         if does_element_contain_sub_category(sub_category_selector)
     }
+
+
+def replace_danish_letters(word: str) -> str:
+    danish_letter_replacement_map_lower = {"æ": "ae", "ø": "oe", "å": "aa"}
+    danish_letter_replacement_map_upper = {k.upper(): v.upper() for k, v in danish_letter_replacement_map_lower.items()}
+    danish_letter_replacement_map = danish_letter_replacement_map_lower | danish_letter_replacement_map_upper
+
+    danish_letter_replacement_map_unicode = str.maketrans(danish_letter_replacement_map)
+    return word.translate(danish_letter_replacement_map_unicode)
 
 
 def get_href_of_element_from_group(response: TextResponse, element_text: str, element_group_css_query: str) -> str:
