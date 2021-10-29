@@ -1,5 +1,6 @@
 import re
 from functools import partial
+from typing import Optional
 
 import scrapy
 from scrapy import Selector
@@ -29,18 +30,11 @@ class DavidsenshopSpider(scrapy.Spider):
         yield response.follow(tree_sub_category_url, callback=self.parse_sub_category_pages)
 
     def parse_sub_category_pages(self, response: TextResponse):
+        sub_category_urls = get_sub_category_urls(response=response)
 
-        for sub_category in [
-            "lægter",
-            "reglar",
-        ]:
-            laegter_sub_category_url = get_href_of_element_from_group(
-                response=response,
-                element_text=sub_category,
-                element_group_css_query="div.sc-bxivhb.bHTkun div div ul li a",
-            )
+        for sub_category, sub_category_url in sub_category_urls.items():
             yield response.follow(
-                laegter_sub_category_url, callback=partial(self.parse_item_list_page, sub_category=sub_category)
+                sub_category_url, callback=partial(self.parse_item_list_page, sub_category=sub_category)
             )
 
     def parse_item_list_page(self, response: TextResponse, sub_category: str):
@@ -63,12 +57,30 @@ class DavidsenshopSpider(scrapy.Spider):
             item_data["price_per_unit"] = format_price_with_comma(price_per_unit)
             item_data["price_per_item"] = format_price_with_comma(price_per_item)
 
-            unit = item_selector.css("div > div > div:nth-child(1) > div:nth-child(1) > div::text").get()
-            item_data["unit"] = unit.strip("kr./")
 
-            item_data["url"] = item_selector.css("div > div:nth-child(1) > a").attrib["href"]
+def get_sub_category_urls(response: TextResponse) -> dict[str, str]:
+    sub_categories_css_query = (
+        "div.sc-bwzfXH.iQBFKU > div.sc-htpNat.japWOx > div.sc-bxivhb.bHTkun > div > div:nth-child(1) > ul > li"
+    )
 
-            yield item_data
+    sub_category_selectors = response.css(sub_categories_css_query)
+
+    def get_sub_category_name(sub_category_selector: Selector) -> str:
+        """Each `a` tag has two text elements. Extract the second one."""
+        return sub_category_selector.css("a::text").getall()[1]
+
+    def does_element_contain_sub_category(sub_category_selector: Selector) -> bool:
+        """
+        Some of the `li` tags contain a "back" button or the main category.
+        The ones that contain sub categories are recognized like this.
+        """
+        return sub_category_selector.attrib["class"].startswith("Filter__Item-sc")
+
+    return {
+        get_sub_category_name(sub_category_selector): sub_category_selector.css("a").attrib["href"]
+        for sub_category_selector in sub_category_selectors
+        if does_element_contain_sub_category(sub_category_selector)
+    }
 
 
 def get_href_of_element_from_group(response: TextResponse, element_text: str, element_group_css_query: str) -> str:
