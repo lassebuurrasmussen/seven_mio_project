@@ -14,15 +14,11 @@ class DavidsenshopSpider(scrapy.Spider):
     start_urls = ["https://www.davidsenshop.dk/"]
 
     def parse(self, response: TextResponse, **kwargs):
-        try:
-            byg_main_category_url = get_href_of_element_from_group(
-                response=response,
-                element_text="byg",
-                element_group_css_query="div.QuickBasketAndMenus__MenuWrapper-sc-17cnu5q-20.fQBxeN div ul li a",
-            )
-        except OutdatedError:
-            # Assume that byg page URL itself has not changed
-            byg_main_category_url = "https://www.davidsenshop.dk/byg-c-id497143"
+        byg_main_category_url = get_href_of_element_from_group(
+            response=response,
+            element_text="byg",
+            element_group_css_query="div.QuickBasketAndMenus__MenuWrapper-sc-17cnu5q-20.fQBxeN div ul li a",
+        )
 
         yield response.follow(byg_main_category_url, callback=self.parse_main_category_page)
 
