@@ -125,15 +125,16 @@ def extract_all_lower_case_texts(selector: Selector) -> list[str]:
     return [element_text.lower() for element_text in selector.css("::text").getall()]
 
 
-def extract_dimensions_from_full_name(full_name: str) -> tuple[str, str, str]:
+def extract_dimensions_from_full_name(full_name: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
     dimension_pattern = r" (\d+ ?x ?\d+) (\w+)"
     dimension_match = re.search(dimension_pattern, full_name)
 
+    if not dimension_match:
+        return None, None, None
+
     dimensions, dimensions_unit = dimension_match.groups()
     dimensions = dimensions.replace(" ", "")
-
     name = full_name[: dimension_match.start()]
-
     return name, dimensions, dimensions_unit
 
 
