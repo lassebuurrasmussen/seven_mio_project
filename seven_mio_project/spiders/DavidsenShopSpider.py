@@ -49,7 +49,11 @@ def parse_item_list_page(response: TextResponse):
         item_selector: Selector
 
         full_name = item_selector.css("div > div:nth-child(1) > a > div:nth-child(2)::text").get()
+        # TODO: Sometimes the dimension_unit extraced is "x"
+        # TODO: Full name sometimes contains more characters that should be part of `name` after dimensions.
+        #  E.g.: Planker fyr 50 x 100 mm U/S uimprægneret
         name, dimensions, dimensions_unit = extract_dimensions_from_full_name(full_name)
+        # TODO: For some items, the unit price replaces the item price
         price_per_unit = get_price(
             item_selector=item_selector,
             css_query="div > div:nth-child(2) > div:nth-child(1) > div > span::text",
