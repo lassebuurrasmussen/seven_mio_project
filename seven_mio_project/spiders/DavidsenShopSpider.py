@@ -33,29 +33,28 @@ class DavidsenshopSpider(scrapy.Spider):
         sub_category_urls = get_sub_category_urls(response=response)
 
         for sub_category, sub_category_url in sub_category_urls.items():
-            yield response.follow(
-                sub_category_url, callback=partial(self.parse_item_list_page, sub_category=sub_category)
-            )
+            yield response.follow(sub_category_url, callback=partial(parse_item_list_page, sub_category=sub_category))
 
-    def parse_item_list_page(self, response: TextResponse, sub_category: str):
-        item_selectors = response.css("div.sc-bxivhb.kRNIyz > ul > li")
 
-        for item_index, item_selector in enumerate(item_selectors):
-            item_data = {"sub_category": sub_category}
-            item_selector: Selector
+def parse_item_list_page(response: TextResponse, sub_category: str):
+    item_selectors = response.css("div.sc-bxivhb.kRNIyz > ul > li")
 
-            full_name = item_selector.css("div > div:nth-child(1) > a > div:nth-child(2)::text").get()
-            name, dimensions, dimensions_unit = extract_dimensions_from_full_name(full_name)
-            item_data.update(
-                {"full_name": full_name, "name": name, "dimensions": dimensions, "dimensions_unit": dimensions_unit}
-            )
+    for item_index, item_selector in enumerate(item_selectors):
+        item_data = {"sub_category": sub_category}
+        item_selector: Selector
 
-            price_per_unit = item_selector.css("div > div:nth-child(2) > div:nth-child(1) > div > span::text").get()
-            price_per_item = item_selector.css(
-                "div > div > div:nth-child(1) > div.styles__DiscountWrap-sc-2i08oq-7::text"
-            ).getall()[1]
-            item_data["price_per_unit"] = format_price_with_comma(price_per_unit)
-            item_data["price_per_item"] = format_price_with_comma(price_per_item)
+        full_name = item_selector.css("div > div:nth-child(1) > a > div:nth-child(2)::text").get()
+        name, dimensions, dimensions_unit = extract_dimensions_from_full_name(full_name)
+        item_data.update(
+            {"full_name": full_name, "name": name, "dimensions": dimensions, "dimensions_unit": dimensions_unit}
+        )
+
+        price_per_unit = item_selector.css("div > div:nth-child(2) > div:nth-child(1) > div > span::text").get()
+        price_per_item = item_selector.css(
+            "div > div > div:nth-child(1) > div.styles__DiscountWrap-sc-2i08oq-7::text"
+        ).getall()[1]
+        item_data["price_per_unit"] = format_price_with_comma(price_per_unit)
+        item_data["price_per_item"] = format_price_with_comma(price_per_item)
 
 
 def get_sub_category_urls(response: TextResponse) -> dict[str, str]:
