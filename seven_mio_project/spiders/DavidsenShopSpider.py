@@ -1,4 +1,3 @@
-import json
 import re
 from typing import Optional
 
@@ -7,7 +6,6 @@ from scrapy import Selector
 from scrapy.http import TextResponse
 from scrapy.selector import SelectorList
 
-from run_spider import spider_output_path
 from seven_mio_project.CustomExceptions import OutdatedError, UnexpectedResultError
 
 
@@ -32,10 +30,6 @@ class DavidsenshopSpider(scrapy.Spider):
 
     def parse_sub_category_pages(self, response: TextResponse):
         sub_category_urls = get_sub_category_urls(response=response)
-
-        sub_categories_path = spider_output_path.parent / "sub_categories.json"
-        sub_category_urls_json = json.dumps(sub_category_urls)
-        sub_categories_path.write_text(sub_category_urls_json)
 
         for _sub_category, sub_category_url in sub_category_urls.items():
             yield response.follow(sub_category_url, callback=parse_item_list_page)
