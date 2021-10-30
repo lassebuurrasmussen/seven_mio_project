@@ -66,8 +66,8 @@ def parse_item_list_page(response: TextResponse):
             }
         )
 
-        unit = item_selector.css("div > div > div:nth-child(1) > div:nth-child(1) > div::text").get()
-        item_data["unit"] = unit.strip("kr./")
+        unit: str = item_selector.css("div > div > div:nth-child(1) > div:nth-child(1) > div::text").get()
+        item_data["unit"] = unit.replace("kr./", "").rstrip(".")
 
         item_data["url"] = item_selector.css("div > div:nth-child(1) > a").attrib["href"]
 
