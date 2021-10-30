@@ -168,13 +168,16 @@ def extract_all_lower_case_texts(selector: Selector) -> list[str]:
 
 
 def extract_dimensions_from_full_name(full_name: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    dimension_pattern = r" (\d+ ?x ?\d+) (\w+)"
+    dimension_pattern = r" ([\d,]+) ?x ?([\d,]+) ?x? ?([\d,]*) (\w+)"
     dimension_match = re.search(dimension_pattern, full_name)
 
     if not dimension_match:
         return None, None, None
 
-    dimensions, dimensions_unit = dimension_match.groups()
-    dimensions = dimensions.replace(" ", "")
-    name = full_name[: dimension_match.start()]
-    return name, dimensions, dimensions_unit
+    d1, d2, d3, dimensions_unit = dimension_match.groups()
+    dimension_values = [d1, d2, d3] if d3 else [d1, d2]
+    dimensions_string = "x".join(dimension_values)
+
+    name = full_name[: dimension_match.start()] + full_name[dimension_match.end():]
+
+    return name, dimensions_string, dimensions_unit
