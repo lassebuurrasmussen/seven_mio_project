@@ -49,14 +49,11 @@ def parse_item_list_page(response: TextResponse):
         name, dimensions, dimensions_unit = extract_dimensions_from_full_name(full_name)
         # TODO: For some items, the unit price replaces the item price
         price_per_unit = get_price(
-            item_selector=item_selector,
-            css_query="div > div:nth-child(2) > div:nth-child(1) > div > span::text",
-            allow_to_be_missing=True,
+            item_selector=item_selector, css_query="div > div:nth-child(2) > div:nth-child(1) > div > span::text"
         )
         price_per_item = get_price(
             item_selector=item_selector,
             css_query="div > div > div:nth-child(1) > div.styles__DiscountWrap-sc-2i08oq-7::text",
-            allow_to_be_missing=False,
         )
         item_data.update(
             {
@@ -77,7 +74,7 @@ def parse_item_list_page(response: TextResponse):
         yield item_data
 
 
-def get_price(item_selector: Selector, css_query: str, allow_to_be_missing: bool) -> Optional[float]:
+def get_price(item_selector: Selector, css_query: str) -> Optional[float]:
     price_candidates = item_selector.css(css_query).getall()
 
     prices_with_float_format = [
@@ -86,12 +83,7 @@ def get_price(item_selector: Selector, css_query: str, allow_to_be_missing: bool
         if (price_as_float := try_to_convert_to_float(price_candidate)) is not None
     ]
 
-    if allow_to_be_missing:
-        return prices_with_float_format[0] if len(prices_with_float_format) else None
-
-    err_message = f"Did not find one and only one price per unit with float format. {prices_with_float_format=}"
-    assert len(prices_with_float_format) == 1, err_message
-    return prices_with_float_format[0]
+    return prices_with_float_format[0] if len(prices_with_float_format) else None
 
 
 def try_to_convert_to_float(inpt: str) -> Optional[float]:
