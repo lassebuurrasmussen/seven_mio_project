@@ -105,7 +105,7 @@ def get_sub_category_urls(response: TextResponse) -> dict[str, str]:
     def get_sub_category_name(sub_category_selector: Selector) -> str:
         """Each `a` tag has two text elements. Extract the second one."""
         sub_category_name = sub_category_selector.css("a::text").getall()[1]
-        return replace_danish_letters(word=sub_category_name)
+        return sub_category_name
 
     def does_element_contain_sub_category(sub_category_selector: Selector) -> bool:
         """
